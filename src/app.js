@@ -117,6 +117,30 @@ app.post("/ovo/inquiry", async (req, res) => {
   }
 });
 
+app.post("/ovo/:clientId/v2/callback", async (req, res) => {
+  try {
+    const clientId = req.params["clientId"];
+    const time = req.headers["time"];
+    const signature = req.headers["signature"];
+    const method = "POST";
+    const url_string = `/ovo/${clientId}/v2/callback`;
+
+    const base64url = Buffer.from(JSON.stringify(req.body)).toString("base64");
+    const seed = clientId + time + method + url_string + base64url;
+    const hmac = encrypt(seed);
+
+    if (signature === hmac) {
+      ovo_log.info("[callback_success]", JSON.stringify(req.body));
+      return res.status(200).json("OKE");
+    }
+
+    throw Error("Bad Data");
+  } catch (e) {
+    ovo_log.error("[catch_error]", JSON.stringify(e.message));
+    res.json(e.message);
+  }
+});
+
 app.listen(process.env.PORT, process.env.IP_SERVER).on("listening", () => {
   console.log(`🚀 are live on ${process.env.PORT}`);
 });
