@@ -1,7 +1,7 @@
 import "dotenv/config";
-import crypto from "crypto";
 import axios from "axios";
 import express from "express";
+import { encrypt } from "./utils.js";
 import { ovo_log } from "./logger.js";
 
 const app = express();
@@ -15,7 +15,6 @@ app.post("/ovo/generate", async (req, res) => {
     let local = new Date();
     local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
 
-    const key = process.env.OVO_SECRET_KEY;
     const clientId = process.env.OVO_CLIENT_ID;
     const time = Date.now();
     const method = "POST";
@@ -31,13 +30,11 @@ app.post("/ovo/generate", async (req, res) => {
       amount: amount,
     });
 
+    ovo_log.info("[request_data]", postData);
+
     const base64url = Buffer.from(postData).toString("base64");
     const seed = clientId + time + method + url_string + base64url;
-    const hmac = crypto
-      .createHmac("sha256", key)
-      .update(seed)
-      .digest()
-      .toString("base64");
+    const hmac = encrypt(seed);
 
     let config = {
       method: method,
@@ -50,6 +47,8 @@ app.post("/ovo/generate", async (req, res) => {
       },
       data: postData,
     };
+
+    ovo_log.info("[request_config]", JSON.stringify(config));
 
     axios(config)
       .then((response) => {
@@ -73,7 +72,6 @@ app.post("/ovo/inquiry", async (req, res) => {
     let local = new Date();
     local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
 
-    const key = process.env.OVO_SECRET_KEY;
     const clientId = process.env.OVO_CLIENT_ID;
     const time = Date.now();
     const method = "POST";
@@ -90,11 +88,7 @@ app.post("/ovo/inquiry", async (req, res) => {
 
     const base64url = Buffer.from(postData).toString("base64");
     const seed = clientId + time + method + url_string + base64url;
-    const hmac = crypto
-      .createHmac("sha256", key)
-      .update(seed)
-      .digest()
-      .toString("base64");
+    const hmac = encrypt(seed);
 
     let config = {
       method: method,
@@ -107,6 +101,7 @@ app.post("/ovo/inquiry", async (req, res) => {
       },
       data: postData,
     };
+
     axios(config)
       .then((response) => {
         ovo_log.info("[response_success]", JSON.stringify(response.data));
