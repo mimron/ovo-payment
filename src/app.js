@@ -214,7 +214,43 @@ app.post("/ovo/ackToken", async (req, res) => {
     const encryptedToken = Buffer.from(token, 'base64').toString('binary')
     const key = privateKeyFromPem.decrypt(encryptedToken);
 
-    res.json({key:key});
+    const postData = JSON.stringify({});
+
+    const clientId = process.env.OVO_CLIENT_ID;
+    const time = Date.now();
+    const method = "POST";
+    const url_string = "/mps/H2H/v2/ackToken";
+
+    const data = clientId + time + method + url_string + key;
+
+    const signature = crypto.sign('RSA-SHA256', data, privateKey).toString("base64");
+
+    let config = {
+      method: `${method}`,
+      url: `${process.env.OVO_URL}${url_string}`,
+      headers: {
+        'Content-Type': 'application/json',
+        'client-id': clientId,
+        'time': time,
+        'signature': signature
+      },
+      data: postData,
+      httpsAgent: agent,
+      proxy: false,
+    };
+
+    ovo_log.info("[request_config]", JSON.stringify(config));
+
+    axios(config)
+      .then((response) => {
+        ovo_log.info("[response_success]", JSON.stringify(response.data));
+        response.data.key = key;
+        res.json(response.data);
+      })
+      .catch((e) => {
+        ovo_log.error("[response_error]", JSON.stringify(e));
+        res.json(e);
+      });
 
   } catch (e) {
     ovo_log.error("[catch_error]", JSON.stringify(e.message));
